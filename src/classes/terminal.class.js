@@ -455,35 +455,33 @@ class Terminal {
                         return;
                 }
             });
-            this.wss.on("connection", ws => {
-                this.onopened(this.tty._pid);
-                ws.on("close", (code, reason) => {
-                    this.ondisconnected(code, reason);
-                });
-                ws.on("message", msg => {
-                    this.tty.write(msg);
-                });
-                this.tty.onData(data => {
-                    this._nextTickUpdateTtyCWD = true;
-                    this._nextTickUpdateProcess = true;
-                    try {
-                        ws.send(data);
-                    } catch (e) {
-                        // Websocket closed
+            this.wss.on("connection", (ws, req) => {
+                    if (!req || !req.socket || req.socket.remoteAddress !== "127.0.0.1") {
+                        console.log("Blocked unauthorized WebSocket connection attempt!");
+                        ws.close();
+                        return;
                     }
+                
+                    this.onopened(this.tty._pid);
+                    ws.on("close", (code, reason) => {
+                        this.ondisconnected(code, reason);
+                    });
+                    ws.on("message", msg => {
+                        this.tty.write(msg);
+                    });
+                    this.tty.onData(data => {
+                        this._nextTickUpdateTtyCWD = true;
+                        this._nextTickUpdateProcess = true;
+                        try {
+                            ws.send(data);
+                        } catch (e) {
+                            // Websocket closed
+                        }
+                    });
                 });
-            });
-
-            this.close = () => {
-                this.tty.kill();
-                this._closed = true;
-            };
-        } else {
-            throw "Unknown purpose";
-        }
-    }
-}
-
-module.exports = {
-    Terminal
-};
+                
+                }
+                
+                module.exports = {
+                    Terminal
+                };
